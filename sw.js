@@ -1,7 +1,7 @@
 // Хранит приложение в телефоне, чтобы оно работало без интернета.
 // При обновлении уроков увеличьте номер версии.
-const VERSION = 'te-v1';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'course-common.js', 'course-tracks.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'te-v2';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'course-common.js', 'course-tracks.js', 'course-kids.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

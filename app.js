@@ -1,6 +1,6 @@
 'use strict';
 (function () {
-  const C = window.COURSE, L = C.lessons, TR = C.tracks;
+  const C = window.COURSE, L = C.lessons, TR = C.tracks, K = window.KIDS;
   const app = document.getElementById('app');
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -19,6 +19,9 @@
     try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) { toast('Не получилось сохранить прогресс'); }
   }
   const P = () => DB.profiles[DB.current];
+  const KTRACK = { title: 'Детский режим (7 лет)', short: 'Детский', who: 'Буквы и первые слова: игры с картинками, плитками и озвучкой' };
+  const trackInfo = k => TR[k] || KTRACK;
+  const isKids = () => !!P() && P().track === 'kids';
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { }
 
   // ───────── Даты ─────────
@@ -308,6 +311,7 @@
     render();
   }
   window.addEventListener('popstate', e => {
+    if (view.name === 'kplay') { view = { name: 'home' }; render(); return; }
     if (view.name === 'quiz' || view.name === 'dialog') { view = { name: 'lesson', id: view.lid }; render(); return; }
     view = (e.state && e.state.v) || { name: 'home' }; render();
   });
@@ -317,6 +321,7 @@
     if ('speechSynthesis' in window) try { speechSynthesis.cancel(); } catch (e) { }
     if (!P()) return renderOnboard();
     const v = view.name;
+    if (isKids() && v !== 'settings') return v === 'album' ? renderAlbum() : renderKidsHome();
     const fn = { home: renderHome, course: renderCourse, lesson: renderLesson, words: renderWords, talk: renderTalk, settings: renderSettings, review: renderReviewIntro }[v];
     if (fn) fn(); else renderHome();
   }
@@ -363,7 +368,7 @@
           <input id="ob-name" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Olga" maxlength="20"></label>
         <fieldset class="track-pick"><legend>Ваша программа</legend>
           ${tracks.map(([k, t], i) => `<label class="track-card"><input type="radio" name="track" value="${k}" ${i === 0 ? 'checked' : ''}><span><b>${t.title}</b><small>${t.who}</small></span></label>`).join('')}
-          <div class="track-card soon"><span><b>Детский режим (7 лет)</b><small>Игры с картинками и озвучкой. Скоро</small></span></div>
+          <label class="track-card kids-card"><input type="radio" name="track" value="kids"><span><b>🐶 ${KTRACK.title}</b><small>${KTRACK.who}</small></span></label>
         </fieldset>
         <button class="btn primary big" id="ob-go">Начать</button>
         ${editing ? '<button class="btn ghost" id="ob-cancel">Отмена</button>' : ''}
@@ -376,7 +381,7 @@
       const id = 'p' + Date.now().toString(36);
       DB.profiles[id] = { id, name: name.charAt(0).toUpperCase() + name.slice(1), track, created: todayStr(), progress: {}, srs: {}, days: {}, stats: { ans: 0, ok: 0, lAns: 0, lOk: 0 }, settings: { rate: 0.9, voice: '', sound: true } };
       DB.current = id; save();
-      speak('Hello, ' + DB.profiles[id].name + '! Let\'s start.');
+      speak('Hello, ' + DB.profiles[id].name + (track === 'kids' ? '! I am Buddy. Let\'s play!' : '! Let\'s start.'));
       go('home', {}, true);
     };
     if (editing) $('#ob-cancel').onclick = () => go('settings', {}, true);
@@ -877,8 +882,8 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
     app.innerHTML = `<main class="page settings">
       <h1>Ещё</h1>
       <section class="card"><h3>Профиль</h3>
-        <div class="profiles">${Object.values(DB.profiles).map(x => `<button class="prof ${x.id === p.id ? 'on' : ''}" data-pid="${x.id}"><b>${esc(x.name)}</b><small>${esc(TR[x.track].short)}</small></button>`).join('')}<button class="prof add" id="add">+ Добавить</button></div>
-        <label class="field"><span>Программа</span><select id="track">${Object.entries(TR).map(([k, t]) => `<option value="${k}" ${k === p.track ? 'selected' : ''}>${t.title}</option>`).join('')}</select></label>
+        <div class="profiles">${Object.values(DB.profiles).map(x => `<button class="prof ${x.id === p.id ? 'on' : ''}" data-pid="${x.id}"><b>${esc(x.name)}</b><small>${esc(trackInfo(x.track).short)}</small></button>`).join('')}<button class="prof add" id="add">+ Добавить</button></div>
+        <label class="field"><span>Программа</span><select id="track">${Object.entries(TR).concat([['kids', KTRACK]]).map(([k, t]) => `<option value="${k}" ${k === p.track ? 'selected' : ''}>${t.title}</option>`).join('')}</select></label>
       </section>
       <section class="card"><h3>Голос и звук</h3>
         <label class="field"><span>Голос</span><select id="voice"><option value="">Автоматически (американский)</option>${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === p.settings.voice ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
@@ -901,7 +906,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
       </section>
       <section class="card danger-zone"><h3>Сброс</h3><button class="btn ghost small" id="reset">Удалить этот профиль</button><div id="reset-confirm"></div></section>
       <p class="fine center">Texas English · версия 1</p>
-    </main>${nav('settings')}`;
+    </main>${isKids() ? `<nav class="tabbar kids-back"><button data-tab="home">${ICON.back}<span>Вернуться к игре</span></button></nav>` : nav('settings')}`;
     bindNav();
     $$('[data-pid]').forEach(b => b.onclick = () => { DB.current = b.dataset.pid; save(); go('home'); });
     $('#add').onclick = () => renderOnboard(true);
@@ -940,13 +945,308 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
     };
   }
 
+  // ───────── Детский режим ─────────
+  const KL = K.lessons, ABC = Object.keys(K.letters);
+  const kidsState = () => { const p = P(); p.kids = p.kids || { stickers: [] }; return p.kids; };
+  const kDone = id => !!(P().progress[id] && P().progress[id].done);
+  const kCurrent = () => KL.findIndex(l => !kDone(l.id));
+  const kUnlocked = i => i === 0 || kDone(KL[i - 1].id);
+  // Буквы и слова, пройденные к концу занятия i (включая его)
+  const lettersUpTo = i => KL.slice(0, i + 1).map(l => l.letters || '').join('');
+  const wordsUpTo = i => KL.slice(0, i + 1).flatMap(l => l.words || []);
+  const kWord = w => ({ en: w, emoji: K.words[w][0], ru: K.words[w][1], gap: !!K.words[w][2] });
+  const letterWord = c => ({ en: K.letters[c].word, emoji: K.letters[c].emoji, ru: K.letters[c].ru, gap: K.gapLetters.includes(c) });
+  function knownWordsUpTo(i) {
+    const seen = new Set();
+    return [...lettersUpTo(i)].map(letterWord).concat(wordsUpTo(i).map(kWord)).filter(w => !seen.has(w.en) && seen.add(w.en));
+  }
+  // Буквы, которые звучат одинаково, не ставим рядом в «С какой буквы?»
+  const SOUNDALIKE = { C: 'KS', K: 'CQ', S: 'C', Q: 'K' };
+  function letterPool(c, i, n = 2) {
+    const bad = c + (SOUNDALIKE[c] || '');
+    const out = pick([...new Set(lettersUpTo(i))].filter(x => !bad.includes(x)), n);
+    return out.concat(pick(ABC.filter(x => !bad.includes(x) && !out.includes(x)), n - out.length));
+  }
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function tkListen(c, i) {
+    return { type: 'kchoice', game: 'listen', key: 'kl:' + c, q: 'Послушай и нажми букву', audio: c, answer: c, options: shuffle([c, ...letterPool(c, i)]), big: true, hint: 'Послушай ещё раз.', after: c };
+  }
+  function tkPair(c, i) {
+    return { type: 'kchoice', game: 'pair', key: 'kl:' + c, q: 'Найди маленькую букву', show: c, answer: c.toLowerCase(), options: shuffle([c, ...letterPool(c, i)]).map(x => x.toLowerCase()), big: true, hint: 'Большая и маленькая — одна и та же буква.', after: c };
+  }
+  function tkFirst(c, i) {
+    const L1 = K.letters[c];
+    return { type: 'kchoice', game: 'first', key: 'kl:' + c, q: 'С какой буквы начинается?', emoji: L1.emoji, sub: L1.ru, audio: L1.word, answer: c, options: shuffle([c, ...letterPool(c, i)]), big: true, hint: `Первый звук: ${L1.sound}.`, after: L1.word, reveal: L1.word };
+  }
+  function tkGap(w, i) {
+    const g = pick(K.gaps, 1)[0];
+    const others = pick(knownWordsUpTo(i).filter(x => x.gap && x.en !== w.en), 2).map(x => x.en);
+    const sent = g[0].replace('___', w.en);
+    return { type: 'kchoice', game: 'gap', q: 'Вставь слово', show: g[0], emoji: w.emoji, sub: `${g[1]}… ${w.ru}`, answer: w.en, options: shuffle([w.en, ...others]), hint: `«${w.ru}» начинается с буквы ${w.en[0].toUpperCase()}.`, after: sent, reveal: sent };
+  }
+  function tkWord(word, i) {
+    const w = kWord(word), letters = [...word];
+    const extra = letterPool(word[0].toUpperCase(), i, 6).map(x => x.toLowerCase()).filter(x => !letters.includes(x)).slice(0, 2);
+    return { type: 'kbuild', game: 'word', key: 'kw:' + word, q: 'Собери слово', emoji: w.emoji, sub: w.ru, audio: word, answer: letters, tiles: shuffle(letters.concat(extra)), after: word };
+  }
+  const phraseWords = s => fill(s).replace(/[.,!?]/g, '').split(' ').filter(Boolean);
+  function tkPhrase(ph) {
+    const ans = phraseWords(ph[0]), low = ans.map(x => x.toLowerCase());
+    const extra = pick([...new Set(KL.filter(l => l.phrase).flatMap(l => phraseWords(l.phrase[0])))].filter(x => !low.includes(x.toLowerCase())), 2);
+    return { type: 'kbuild', game: 'phrase', q: 'Собери фразу', show: fill(ph[1]), audio: ph[0], answer: ans, tiles: shuffle(ans.concat(extra)), after: ph[0] };
+  }
+  function tkSpeak(w) {
+    return { type: 'kspeak', q: 'Скажи вслух', emoji: w.emoji, show: w.en, sub: w.ru, audio: w.en, noScore: true };
+  }
+  const kidsDue = () => Object.entries(P().srs).filter(([k, v]) => /^k[lw]:/.test(k) && v.due <= dayNum()).sort((a, b) => a[1].due - b[1].due).map(([k]) => k);
+  function tkReview(key, i) {
+    const id = key.slice(3);
+    const t = key[1] === 'l' ? [tkListen, tkPair, tkFirst][Math.floor(Math.random() * (K.letters[id].noFirst ? 2 : 3))](id, i) : tkWord(id, i);
+    return Object.assign(t, { review: true });
+  }
+  function kidsLessonTasks(i) {
+    const les = KL[i];
+    if (les.check) return kidsCheckTasks(i);
+    const lets = [...les.letters];
+    const t = shuffle(lets.map(c => tkListen(c, i)))
+      .concat(shuffle(lets.map(c => tkPair(c, i)).concat(lets.filter(c => !K.letters[c].noFirst).map(c => tkFirst(c, i)))));
+    // Повторение старых букв и слов, если подошёл их день
+    const mine = new Set(lets.map(c => 'kl:' + c).concat(les.words.map(w => 'kw:' + w)));
+    kidsDue().filter(k => !mine.has(k)).slice(0, 3).forEach(k => t.push(tkReview(k, i)));
+    les.words.forEach(w => t.push(tkWord(w, i)));
+    pick(knownWordsUpTo(i).filter(w => w.gap), 2).forEach(w => t.push(tkGap(w, i)));
+    t.push(tkPhrase(les.phrase));
+    if (canListen()) t.push(tkSpeak(letterWord(pick(lets.filter(c => !K.letters[c].noFirst), 1)[0])));
+    return t;
+  }
+  function kidsCheckTasks(i) {
+    const t = [];
+    pick(ABC, 6).forEach(c => t.push(tkListen(c, i)));
+    pick(ABC, 4).forEach(c => t.push(tkPair(c, i)));
+    pick(ABC.filter(c => !K.letters[c].noFirst), 4).forEach(c => t.push(tkFirst(c, i)));
+    pick(wordsUpTo(i), 3).forEach(w => t.push(tkWord(w, i)));
+    return shuffle(t);
+  }
+  function kidsReviewTasks() {
+    const i = KL.length - 1;
+    let keys = kidsDue().slice(0, 10);
+    if (keys.length < 6) keys = keys.concat(pick(ABC.map(c => 'kl:' + c).concat(wordsUpTo(i).map(w => 'kw:' + w)).filter(k => !keys.includes(k)), 10 - keys.length));
+    return shuffle(keys.map(k => tkReview(k, i)));
+  }
+
+  const buddy = (text, cls = '') => `<div class="buddy ${cls}"><span class="pup" aria-hidden="true">🐶</span><p class="bubble" id="bubble">${esc(text)}</p></div>`;
+  function say(text, mood) {
+    const b = $('#bubble'); if (!b) return;
+    b.textContent = text; const bd = b.parentNode;
+    bd.classList.remove('happy', 'oops'); void bd.offsetWidth; if (mood) bd.classList.add(mood);
+  }
+  const kplay = (text, cls = '') => `<button class="kplay-btn ${cls}" data-say="${esc(text)}" aria-label="Послушать">${ICON.play}</button>`;
+
+  function renderKidsHome() {
+    const p = P(), cur = kCurrent(), ks = kidsState();
+    const curLes = KL[cur];
+    const next = cur < 0 ? 'Все буквы пройдены! Играем и повторяем.' : curLes.check ? 'Сегодня: большая буквенная проверка!' : `Сегодня: буквы ${[...curLes.letters].join(' ')}`;
+    app.innerHTML = `<main class="page kids khome">
+      <header class="khead"><h1>Привет, ${esc(p.name)}!</h1><button class="icon-btn" id="kset" aria-label="Для родителей">${ICON.gear}</button></header>
+      ${buddy(ks.stickers.length ? 'Ура, снова ты! Поиграем?' : 'Я щенок Бадди! Будем учить английские буквы?', 'big')}
+      <button class="kgo" id="play">Играть!</button>
+      <p class="knext">${esc(next)}</p>
+      <section class="kmap" aria-label="Занятия">${KL.map((l, i) => {
+        const pr = p.progress[l.id] || {}, open = kUnlocked(i);
+        return `<button class="kstop ${pr.done ? 'done' : ''} ${i === cur ? 'cur' : ''}" data-k="${i}" ${open ? '' : 'disabled'}>
+          <b>${l.check ? '🏆' : esc([...l.letters].join(''))}</b><small>${pr.done ? '⭐'.repeat(pr.stars || 1) : open ? 'играть' : '🔒'}</small></button>`;
+      }).join('')}</section>
+      <button class="btn ghost big kalbum" id="album">🎁 Альбом наклеек · ${ks.stickers.length}</button>
+    </main>`;
+    $('#play').onclick = () => cur < 0 ? kidsPlay(-1) : kidsPlay(cur);
+    $$('[data-k]').forEach(b => b.onclick = () => kidsPlay(+b.dataset.k));
+    $('#album').onclick = () => go('album');
+    $('#kset').onclick = () => go('settings');
+  }
+  function renderAlbum() {
+    const st = kidsState().stickers;
+    const slots = Math.max(K.stickers.length, Math.ceil(st.length / 5) * 5);
+    app.innerHTML = `<main class="page kids kalbum-page">
+      <header class="khead"><button class="icon-btn" id="back" aria-label="Назад">${ICON.back}</button><h1>Мои наклейки</h1><span></span></header>
+      ${buddy(st.length ? `У тебя уже ${st.length}! Каждое занятие — новая наклейка.` : 'Пока пусто. Поиграй — и тут появится первая наклейка!')}
+      <div class="stickers">${Array.from({ length: slots }, (_, i) => `<span class="${st[i] ? 'got' : ''}">${st[i] || ''}</span>`).join('')}</div>
+    </main>`;
+    $('#back').onclick = () => go('home', {}, true);
+  }
+
+  // i — номер занятия, -1 — повторение после всего алфавита
+  function kidsPlay(i) {
+    const les = KL[i];
+    const intro = les && !les.check ? [...les.letters] : [];
+    const tasks = i < 0 ? kidsReviewTasks() : kidsLessonTasks(i);
+    view = { name: 'kplay' };
+    try { history.pushState({ v: { name: 'home' } }, ''); } catch (e) { }
+    const state = { step: 0, scored: 0, firstOk: 0 };
+    const steps = intro.map(c => ({ type: 'kintro', c })).concat(tasks);
+
+    function frame(inner, bubbleText) {
+      const pct = Math.round(state.step / steps.length * 100);
+      app.innerHTML = `<main class="page kids kplay">
+        <header class="qbar"><button class="icon-btn" id="quit" aria-label="Выйти">${ICON.close}</button><div class="progress"><i style="width:${pct}%"></i></div></header>
+        <section class="kbody">${inner}</section>
+        <footer class="kfoot">${buddy(bubbleText)}<div id="knext"></div></footer></main>`;
+      $('#quit').onclick = () => {
+        $('.kbody').innerHTML = `<div class="confirm"><h2>Закончить игру?</h2><button class="btn primary big" id="stay">Играть дальше</button><button class="btn ghost big" id="leave">Домой</button></div>`;
+        $('#knext').innerHTML = '';
+        $('#stay').onclick = show;
+        $('#leave').onclick = () => go('home', {}, true);
+      };
+      bindSay();
+    }
+    function nextBtn(text = 'Дальше ➜') {
+      $('#knext').innerHTML = `<button class="kgo small" id="next">${text}</button>`;
+      $('#next').onclick = () => { state.step++; show(); };
+    }
+    function show() {
+      if (state.step >= steps.length) return finish();
+      const t = steps[state.step];
+      if (t.type === 'kintro') showIntro(t.c);
+      else if (t.type === 'kchoice') showChoice(t);
+      else if (t.type === 'kbuild') showBuild(t);
+      else if (t.type === 'kspeak') showSpeak(t);
+    }
+    function showIntro(c) {
+      const x = K.letters[c];
+      frame(`<p class="kq">Новая буква</p>
+        <div class="kletter"><b>${c}<span>${c.toLowerCase()}</span></b>${kplay(c)}</div>
+        <p class="kname">Называется <b>«${esc(x.name)}»</b></p>
+        <p class="ksound">Звучит как <b>${esc(x.sound)}</b></p>
+        <button class="kword" data-say="${esc(x.word)}"><span>${x.emoji}</span><b>${x.noFirst ? esc(x.word).replace('x', '<u>x</u>') : `<u>${esc(x.word[0])}</u>${esc(x.word.slice(1))}`}</b><small>${esc(x.ru)}</small></button>`,
+        `Это буква ${c}! Нажми на картинку и послушай слово.`);
+      setTimeout(() => speak(c), 300);
+      nextBtn();
+    }
+    function prompt(t) {
+      const audio = t.audio && t.game !== 'gap' ? kplay(t.audio, t.game === 'listen' ? 'huge' : '') : '';
+      if (t.game === 'listen') return `<p class="kq">${esc(t.q)}</p><div class="kshow">${audio}</div>`;
+      if (t.game === 'pair') return `<p class="kq">${esc(t.q)}</p><div class="kshow"><b class="kbigletter">${esc(t.show)}</b></div>`;
+      if (t.game === 'gap') return `<p class="kq">${esc(t.q)}</p><div class="kshow"><span class="kemoji">${t.emoji}</span><b class="ksent" id="reveal">${esc(t.show).replace('___', '<u>&nbsp;?&nbsp;</u>')}</b><small>${esc(t.sub)}</small></div>`;
+      if (t.game === 'phrase') return `<p class="kq">${esc(t.q)}</p><div class="kshow"><b class="ksent">${esc(t.show)}</b>${audio}</div>`;
+      return `<p class="kq">${esc(t.q)}</p><div class="kshow"><span class="kemoji">${t.emoji}</span>${audio}<small id="reveal">${esc(t.sub || '')}</small></div>`;
+    }
+    function score(t, ok) {
+      if (t.noScore) return;
+      state.scored++; if (ok) state.firstOk++;
+      if (t.review && t.key) srsReview(t.key, ok);
+      const p = P(); p.stats.ans++; if (ok) p.stats.ok++;
+      save();
+    }
+    function praise(t) {
+      beep(true);
+      say(pick(K.praise, 1)[0], 'happy');
+      if (t.after) setTimeout(() => speak(t.after), 200);
+      nextBtn();
+    }
+    function showChoice(t) {
+      let miss = 0;
+      frame(`${prompt(t)}<div class="kopts ${t.big ? 'letters' : ''}">${t.options.map(o => `<button class="kopt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`, t.review ? 'Это мы уже учили. Вспомнишь?' : 'Выбирай!');
+      if (t.audio) setTimeout(() => speak(t.audio), 300);
+      $$('.kopt').forEach(b => b.onclick = () => {
+        if (b.dataset.v === t.answer) {
+          if (!miss) score(t, true);
+          $$('.kopt').forEach(x => { x.disabled = true; x.classList.remove('hintme'); });
+          b.classList.add('right');
+          const r = $('#reveal'); if (r && t.reveal) r.textContent = t.reveal;
+          return praise(t);
+        }
+        if (!miss) score(t, false);
+        miss++; beep(false);
+        b.classList.add('wrong'); b.disabled = true;
+        say(pick(K.tryAgain, 1)[0] + ' ' + t.hint, 'oops');
+        if (t.game === 'listen') setTimeout(() => speak(t.audio), 400);
+        if (miss >= 2) $$('.kopt').forEach(x => { if (x.dataset.v === t.answer) x.classList.add('hintme'); });
+      });
+    }
+    function showBuild(t) {
+      let pos = 0, miss = 0;
+      const word = t.game === 'word';
+      const slot = (v, n) => `<span class="kslot ${v ? 'in' : ''}">${v ? esc(v) : ''}</span>`;
+      frame(`${prompt(t)}<div class="kline ${word ? 'letters' : ''}" id="line"></div><div class="ktiles ${word ? 'letters' : ''}">${t.tiles.map((w, n) => `<button class="ktile" data-n="${n}">${esc(w)}</button>`).join('')}</div>`,
+        word ? 'Нажимай буквы по порядку!' : 'Нажимай слова по порядку!');
+      const draw = () => { $('#line').innerHTML = t.answer.map((w, n) => slot(n < pos ? w : '', n)).join(word ? '' : ' '); };
+      draw();
+      setTimeout(() => speak(t.audio), 300);
+      $$('.ktile').forEach(b => b.onclick = () => {
+        const v = t.tiles[+b.dataset.n];
+        if (v.toLowerCase() === t.answer[pos].toLowerCase()) {
+          b.classList.add('used'); b.disabled = true; b.classList.remove('hintme');
+          pos++; draw();
+          if (pos < t.answer.length) { speak(word ? v.toUpperCase() : v); say(word ? 'Так! Дальше.' : 'Так! Следующее слово.'); return; }
+          score(t, !miss);
+          $$('.ktile').forEach(x => x.disabled = true);
+          return praise(t);
+        }
+        miss++; beep(false);
+        b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+        const need = t.answer[pos];
+        say(pick(K.tryAgain, 1)[0] + ' ' + (word ? `Следующая буква — «${K.letters[need.toUpperCase()].name}».` : 'Послушай фразу ещё раз.'), 'oops');
+        if (!word) speak(t.audio);
+        if (miss >= 2) { const h = $$('.ktile').find(x => !x.disabled && t.tiles[+x.dataset.n].toLowerCase() === need.toLowerCase()); if (h) h.classList.add('hintme'); }
+      });
+    }
+    function showSpeak(t) {
+      frame(`${prompt(t)}<p class="ksent center">${esc(t.show)}</p><div class="speak-zone"><button class="mic" id="mic" aria-label="Сказать">${ICON.mic}</button></div>`, 'Нажми на микрофон и скажи слово!');
+      $('#knext').innerHTML = `<button class="btn ghost wide" id="skip">Пропустить</button>`;
+      $('#skip').onclick = () => { state.step++; show(); };
+      setTimeout(() => speak(t.audio), 300);
+      $('#mic').onclick = async () => {
+        const mic = $('#mic'); mic.classList.add('rec'); say('Слушаю…');
+        try {
+          const alts = await listen();
+          mic.classList.remove('rec');
+          if (alts.length && matchAny(alts, [t.answer || t.show])) return praise({});
+          beep(false); say('Почти! Послушай и скажи ещё раз.', 'oops'); speak(t.audio);
+        } catch (e) {
+          mic.classList.remove('rec');
+          say('Не получилось услышать. Можно пропустить.', 'oops');
+        }
+      };
+    }
+    function finish() {
+      const ratio = state.scored ? state.firstOk / state.scored : 1;
+      const stars = ratio >= 0.9 ? 3 : ratio >= 0.7 ? 2 : 1;
+      const ks = kidsState(), d = today();
+      const fresh = K.stickers.filter(s => !ks.stickers.includes(s));
+      const sticker = pick(fresh.length ? fresh : K.stickers, 1)[0];
+      ks.stickers.push(sticker);
+      d.kids = true;
+      if (les) {
+        const pr = prog(les.id);
+        if (!pr.done && !les.check) {
+          [...les.letters].forEach(c => srsAdd('kl:' + c, false));
+          les.words.forEach(w => srsAdd('kw:' + w, false));
+        }
+        pr.done = true; pr.stars = Math.max(pr.stars || 0, stars); pr.date = todayStr();
+      } else d.review = true;
+      save();
+      const big = les && les.check;
+      app.innerHTML = `<main class="page kids kresult">
+        <div class="kstars">${[1, 2, 3].map(n => `<span class="${n <= stars ? 'on' : ''}" style="--d:${n * .2}s">⭐</span>`).join('')}</div>
+        <h1>${big ? 'Ты знаешь все буквы!' : stars === 3 ? 'Супер-игра!' : 'Молодец!'}</h1>
+        <div class="knew-sticker"><small>Новая наклейка</small><span>${sticker}</span></div>
+        ${buddy(big ? 'Ура! Весь алфавит! Я тобой горжусь!' : 'Отличная игра! Приходи завтра.', 'happy')}
+        <button class="kgo" id="k-home">Домой</button>
+        <button class="btn ghost big" id="k-album">Посмотреть альбом</button></main>`;
+      setTimeout(() => speak(big ? 'Hooray! You know the alphabet!' : 'Great job!'), 300);
+      $('#k-home').onclick = () => go('home', {}, true);
+      $('#k-album').onclick = () => go('album', {}, true);
+    }
+    show();
+  }
+
   // ───────── Запуск ─────────
-  window.addEventListener('online', () => { if (view.name !== 'quiz' && view.name !== 'dialog') render(); });
+  window.addEventListener('online', () => { if (view.name !== 'quiz' && view.name !== 'dialog' && view.name !== 'kplay') render(); });
   window.addEventListener('offline', () => toast('Нет интернета — уроки и тесты работают, голосовая проверка дома'));
   try { history.replaceState({ v: view }, ''); } catch (e) { }
   render();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
   }
-  window.__TE = { ITEMS, norm, keyOf, matchOne, practiceTasks, testTasks, checkpointTasks };
+  window.__TE = { ITEMS, norm, keyOf, matchOne, practiceTasks, testTasks, checkpointTasks, kidsLessonTasks, kidsReviewTasks, lettersUpTo };
 })();
