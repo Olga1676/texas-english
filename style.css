@@ -373,3 +373,6 @@ body:has(.kids) { background: linear-gradient(180deg, #dff1ff 0%, #fff8e6 100%) 
 .stickers span.got { background: var(--k-card); border: 0; box-shadow: var(--shadow); }
 .tabbar.kids-back button { max-width: none; flex-direction: row; justify-content: center; gap: 8px; font-size: .95rem; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .kids *, .kids *::before { animation: none !important; } }
+.kaudio { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.kslow { border: 0; border-radius: 99px; background: var(--k-card); color: var(--k-ink); font-weight: 700; font-size: .95rem; padding: 8px 14px; min-height: 40px; box-shadow: 0 3px 0 rgba(0, 0, 0, .12); }
+.kword + .kslow { margin-top: 10px; }

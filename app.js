@@ -79,8 +79,9 @@
       const u = new SpeechSynthesisUtterance(fill(text).replace(/_{2,}/g, 'blank'));
       const v = pickVoice();
       if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
-      const rate = (P() && P().settings.rate) || 0.9;
-      u.rate = slow ? Math.max(0.45, rate * 0.6) : rate;
+      // Детям обычная речь чуть медленнее, а «медленно» — совсем по слогам
+      const rate = ((P() && P().settings.rate) || 0.9) * (isKids() ? 0.85 : 1);
+      u.rate = slow ? Math.max(isKids() ? 0.35 : 0.45, rate * 0.6) : rate;
       speechSynthesis.speak(u);
     } catch (e) { }
   }
@@ -1041,7 +1042,8 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
     b.textContent = text; const bd = b.parentNode;
     bd.classList.remove('happy', 'oops'); void bd.offsetWidth; if (mood) bd.classList.add(mood);
   }
-  const kplay = (text, cls = '') => `<button class="kplay-btn ${cls}" data-say="${esc(text)}" aria-label="Послушать">${ICON.play}</button>`;
+  const kslow = text => `<button class="kslow" data-say-slow="${esc(text)}">🐢 медленно</button>`;
+  const kplay = (text, cls = '') => `<span class="kaudio"><button class="kplay-btn ${cls}" data-say="${esc(text)}" aria-label="Послушать">${ICON.play}</button>${kslow(text)}</span>`;
 
   function renderKidsHome() {
     const p = P(), cur = kCurrent(), ks = kidsState();
@@ -1117,7 +1119,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
         <div class="kletter"><b>${c}<span>${c.toLowerCase()}</span></b>${kplay(c)}</div>
         <p class="kname">Называется <b>«${esc(x.name)}»</b></p>
         <p class="ksound">Звучит как <b>${esc(x.sound)}</b></p>
-        <button class="kword" data-say="${esc(x.word)}"><span>${x.emoji}</span><b>${x.noFirst ? esc(x.word).replace('x', '<u>x</u>') : `<u>${esc(x.word[0])}</u>${esc(x.word.slice(1))}`}</b><small>${esc(x.ru)}</small></button>`,
+        <button class="kword" data-say="${esc(x.word)}"><span>${x.emoji}</span><b>${x.noFirst ? esc(x.word).replace('x', '<u>x</u>') : `<u>${esc(x.word[0])}</u>${esc(x.word.slice(1))}`}</b><small>${esc(x.ru)}</small></button>${kslow(x.word)}`,
         `Это буква ${c}! Нажми на картинку и послушай слово.`);
       setTimeout(() => speak(c), 300);
       nextBtn();
@@ -1159,7 +1161,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
         miss++; beep(false);
         b.classList.add('wrong'); b.disabled = true;
         say(pick(K.tryAgain, 1)[0] + ' ' + t.hint, 'oops');
-        if (t.game === 'listen') setTimeout(() => speak(t.audio), 400);
+        if (t.game === 'listen') setTimeout(() => speak(t.audio, true), 400);
         if (miss >= 2) $$('.kopt').forEach(x => { if (x.dataset.v === t.answer) x.classList.add('hintme'); });
       });
     }
@@ -1186,7 +1188,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
         b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
         const need = t.answer[pos];
         say(pick(K.tryAgain, 1)[0] + ' ' + (word ? `Следующая буква — «${K.letters[need.toUpperCase()].name}».` : 'Послушай фразу ещё раз.'), 'oops');
-        if (!word) speak(t.audio);
+        if (!word) speak(t.audio, true);
         if (miss >= 2) { const h = $$('.ktile').find(x => !x.disabled && t.tiles[+x.dataset.n].toLowerCase() === need.toLowerCase()); if (h) h.classList.add('hintme'); }
       });
     }
@@ -1201,7 +1203,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
           const alts = await listen();
           mic.classList.remove('rec');
           if (alts.length && matchAny(alts, [t.answer || t.show])) return praise({});
-          beep(false); say('Почти! Послушай и скажи ещё раз.', 'oops'); speak(t.audio);
+          beep(false); say('Почти! Послушай и скажи ещё раз.', 'oops'); speak(t.audio, true);
         } catch (e) {
           mic.classList.remove('rec');
           say('Не получилось услышать. Можно пропустить.', 'oops');
