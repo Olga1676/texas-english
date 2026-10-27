@@ -10,6 +10,7 @@
 
   // ───────── Хранилище ─────────
   const KEY = 'texas-english-v1';
+  const APP_VER = 5; // совпадает с VERSION в sw.js
   let DB = load();
   function load() {
     try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) { }
@@ -362,7 +363,7 @@
     const tracks = Object.entries(TR);
     app.innerHTML = `
       <main class="page onboard">
-        <div class="brand"><span class="brand-mark">TX</span><div><b>Texas English</b><small>английский с нуля для семьи</small></div></div>
+        <div class="brand"><span class="brand-mark">EN</span><div><b>English для всей семьи</b><small>английский с нуля</small></div></div>
         <h1>${editing ? 'Новый профиль' : 'Давайте познакомимся'}</h1>
         <p class="lead">У каждого члена семьи свой профиль и свой прогресс. Заниматься — 30–40 минут в день.</p>
         <label class="field"><span>Имя латиницей, как в загранпаспорте</span>
@@ -906,7 +907,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
         <button class="btn primary small" id="do-import" hidden>Загрузить копию</button>
       </section>
       <section class="card danger-zone"><h3>Сброс</h3><button class="btn ghost small" id="reset">Удалить этот профиль</button><div id="reset-confirm"></div></section>
-      <p class="fine center">Texas English · версия 1</p>
+      <p class="fine center">English для всей семьи · версия ${APP_VER}</p>
     </main>${isKids() ? `<nav class="tabbar kids-back"><button data-tab="home">${ICON.back}<span>Вернуться к игре</span></button></nav>` : nav('settings')}`;
     bindNav();
     $$('[data-pid]').forEach(b => b.onclick = () => { DB.current = b.dataset.pid; save(); go('home'); });
@@ -1060,6 +1061,7 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
           <b>${l.check ? '🏆' : esc([...l.letters].join(''))}</b><small>${pr.done ? '⭐'.repeat(pr.stars || 1) : open ? 'играть' : '🔒'}</small></button>`;
       }).join('')}</section>
       <button class="btn ghost big kalbum" id="album">🎁 Альбом наклеек · ${ks.stickers.length}</button>
+      <p class="fine center">версия ${APP_VER}</p>
     </main>`;
     $('#play').onclick = () => cur < 0 ? kidsPlay(-1) : kidsPlay(cur);
     $$('[data-k]').forEach(b => b.onclick = () => kidsPlay(+b.dataset.k));
@@ -1249,6 +1251,13 @@ ${prev.length ? 'Пройденные темы: ' + prev.join('; ') + '.\n' : ''
   render();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
+    // Новая версия встала — один раз перезагружаемся, чтобы сразу её показать (кроме середины игры или урока)
+    const hadSW = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadSW || reloaded || ['quiz', 'dialog', 'kplay'].includes(view.name)) return;
+      reloaded = true; location.reload();
+    });
   }
   window.__TE = { ITEMS, norm, keyOf, matchOne, practiceTasks, testTasks, checkpointTasks, kidsLessonTasks, kidsReviewTasks, lettersUpTo };
 })();

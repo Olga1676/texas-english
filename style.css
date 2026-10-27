@@ -1,4 +1,4 @@
-/* Texas English — тёмно-синий как на флаге Техаса, красный только для ошибок и контрольных, «блюбоннет» как акцент. */
+/* English для всей семьи — тёмно-синий, красный только для ошибок и контрольных, «блюбоннет» как акцент. */
 :root {
   --bg: #f3f5f9;
   --surface: #ffffff;
@@ -79,8 +79,8 @@ p { margin: .4em 0 .8em; }
 
 /* Знакомство */
 .brand { display: flex; align-items: center; gap: 12px; margin: 8px 0 18px; }
-.brand-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--navy); color: #fff; font-weight: 800; letter-spacing: .04em; position: relative; overflow: hidden; }
-.brand-mark::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--bad); }
+.brand-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: #2f5fd0; color: #fff; font-weight: 800; letter-spacing: .04em; position: relative; overflow: hidden; }
+.brand-mark::after { content: ""; position: absolute; left: 30%; right: 30%; bottom: 9px; height: 4px; border-radius: 2px; background: #ffb703; }
 .brand b { display: block; font-size: 1.1rem; }
 .brand small { color: var(--muted); }
 .lead { color: var(--muted); }
